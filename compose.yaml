@@ -1,0 +1,25 @@
+services:
+  servidor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: caronas-servidor
+    environment:
+      SERVER_ID: ${SERVER_ID:?Defina SERVER_ID como A, B ou C}
+      SERVER_TCP_PORT: ${SERVER_TCP_PORT:?Defina SERVER_TCP_PORT}
+      SERVER_HTTP_PORT: ${SERVER_HTTP_PORT:-8081}
+      PEER_A: ${PEER_A:-}
+      PEER_B: ${PEER_B:-}
+      PEER_C: ${PEER_C:-}
+    ports:
+      - "${SERVER_TCP_PORT}:${SERVER_TCP_PORT}"
+      - "${SERVER_HTTP_PORT}:8081"
+    command:
+      - "-id"
+      - "${SERVER_ID}"
+      - "-tcp"
+      - ":${SERVER_TCP_PORT}"
+      - "-http"
+      - ":8081"
+      - "-peers"
+      - "${PEERS}"

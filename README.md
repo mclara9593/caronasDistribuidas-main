@@ -59,57 +59,64 @@ qualquer intermediação humana.
 
 ### 1. Clonar o repositório
 ```bash
-git clone https://github.com/mclara9593/caronas
-cd caronas
+git clone https://github.com/mclara9593/caronasDistribuidas
+cd caronasDistribuidas
 ```
 
-### 2. Rodando localmente (com Go instalado)
+### 2. Rodando via Docker
 
-Instalar o Go:
+Construindo as iamgens
 ```bash
-rm -f go.linux-amd64.tar.gz go*.linux-amd64.tar.gz
-
-export VERSAO_GO=$(curl -fsSL 'https://go.dev/VERSION?m=text' | head -n 1 | sed 's/^go//')
-
-curl -fL -o "go${VERSAO_GO}.linux-amd64.tar.gz" \
-  "https://go.dev/dl/go${VERSAO_GO}.linux-amd64.tar.gz"
-
-sudo rm -rf /usr/local/go
-sudo tar -C /usr/local -xzf "go${VERSAO_GO}.linux-amd64.tar.gz"
-
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-source ~/.bashrc
+docker build -f dockerfile --target motorista -t caronas-motorista .
+docker build -f dockerfile --target passageiro -t caronas-passageiro .
+docker build -f dockerfile --target server -t caronas-server .
 ```
 
-Rodar o servidor:
+Servidor A
 ```bash
-go run cmd/server/main.go -addr=:9593
+docker run -d --name servidor-a \
+  -p 9593:9593 -p 8081:8081 \
+  caronas-server \
+  -id A -tcp :9593 -http :8081 \
+ -peers "B=http://172.16.201.16:8081,C=http://172.16.201.3:8081"
 ```
-
-Rodar os clientes (em máquinas/terminais separados, apontando pro IP do servidor):
+Servidor B
 ```bash
-go run cmd/client/motorista/main.go -addr=192.168.0.15:9593
-go run cmd/client/passageiro/main.go -addr=192.168.0.15:9593
+docker run -d --name servidor-b \
+  -p 9594:9594 -p 8081:8081 \
+  caronas-server \
+  -id B -tcp :9594 -http :8081 \
+  -peers "A=http://172.16.201.2:8081,C=http://172.16.201.3:8081"
+
 ```
 
-### 3. Rodando o servidor via Docker
-
-Build da imagem:
+Servidor C
 ```bash
-docker build -t caronas-server .
+docker run -d --name servidor-c \
+  -p 9595:9595 -p 8081:8081 \
+  caronas-server \
+  -id C -tcp :9595 -http :8081 \
+  -peers "A=http://172.16.201.2:8081,B=http://172.16.201.16:8081"
+
 ```
 
-Executar o container:
+Para acompanhar cada servidor:
 ```bash
-docker run -p 9593:9593 caronas-server
+docker logs -f servidor-a
 ```
 
-Ou, com Docker Compose:
+Para rodar os clientes:
+
 ```bash
-docker compose up --build
+docker run --rm -it caronas-motorista
 ```
 
-Os clientes (motorista/passageiro) continuam rodando localmente com Go, apontando para o IP/porta onde o container está exposto.
+
+```bash
+docker run --rm -it caronas-passageiro
+```
+
+
 
 ## 💻 Solução
 
@@ -120,7 +127,7 @@ Comunicação em JSON sobre TCP, com cada requisição seguindo um envelope padr
 Cada cidade é um nó do grafo, e cada trecho de carona publicado (Section) é uma aresta direcionada entre duas cidades, com capacidade de assentos e preço próprios. Ao publicar uma carona com uma rota de múltiplas cidades, ela é quebrada automaticamente em trechos (Sections) individuais.
 
 ### Algoritmos de busca
-Busca em largura (BFS) a partir da cidade de origem, explorando apenas trechos com assentos disponíveis, até alcançar o destino. Cada caminho encontrado pode combinar trechos de motoristas diferentes, formando um itinerário multi-trecho identificado por um ID único de rota, que o servidor guarda internamente para resolver a reserva de todos os trechos envolvidos de forma atômica.
+
 
 ## Domínio da solução
 * Disponibilidade de assentos deve ser cobrada por Section
@@ -175,8 +182,6 @@ Esqueleto da resposta:
 5. A resposta é serializada em JSON e enviada de volta ao cliente pela mesma conexão.
 6. A conexão permanece aberta, permitindo múltiplas requisições sequenciais até o cliente encerrar a sessão.
 
-## Testes e Resultados
-*(seção a ser preenchida com os cenários de teste executados e seus resultados)*
 
 ## ✍️ Colaboradores
 
