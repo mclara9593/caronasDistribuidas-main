@@ -242,13 +242,20 @@ func chaveDoCaminho(sections []Section) string {
 
 // registrarItinerarioSemLock pressupõe que o chamador possui o lock de escrita.
 func (g *Grafo) registrarItinerarioSemLock(sections []Section) string {
-	g.itinSeq++
-	id := fmt.Sprintf("rota-%d", g.itinSeq)
-
 	sectionIDs := make([]string, len(sections))
 	for i, section := range sections {
 		sectionIDs[i] = section.IdSection
 	}
+
+	// Reutiliza o ID se a mesma sequência de trechos já foi registrada.
+	for id, idsExistentes := range g.Itineraries {
+		if mesmosIDs(idsExistentes, sectionIDs) {
+			return id
+		}
+	}
+
+	g.itinSeq++
+	id := fmt.Sprintf("rota-%d", g.itinSeq)
 	g.Itineraries[id] = sectionIDs
 
 	return id
